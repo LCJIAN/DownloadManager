@@ -14,9 +14,13 @@ public interface DownloadListener {
      */
     void onProgress(Download download, long downloadedBytes);
     
+    /**
+     * Pay attention to that this method will be called in every {@link Download}'s action thread pool.
+     */
+    void onRetry(Download download, Throwable throwable);
+    
     void onChunkDownloadsCreate(Download download, List<ChunkDownload> chunkDownloads);
     
     void onChunkDownloadsDestroy(Download download, List<ChunkDownload> chunkDownloads);
     
-    void onRetry(Download download, Throwable throwable);
 }

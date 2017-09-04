@@ -176,6 +176,9 @@ public final class Download {
                         || status.getStatus() == DownloadStatus.MERGE_ERROR)
                         && retryPolicy.shouldRetry(Download.this, status.getThrowable())) {
                     retryFlag = true;
+                    for (DownloadListener downloadListener : listeners) {
+                        downloadListener.onRetry(Download.this, status.getThrowable());
+                    }
                     startAsync();
                     return;
                 }
