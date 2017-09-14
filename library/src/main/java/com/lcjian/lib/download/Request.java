@@ -21,7 +21,7 @@ public final class Request implements Serializable {
     private final String fileName;
     private final Map<String, String> headers;
     /**
-     * Use for customation. You can use JSON string or some else to save more info.
+     * Use for customization. You can use JSON string or some else to save more info.
      */
     private final String extra;
 
@@ -51,7 +51,7 @@ public final class Request implements Serializable {
     }
 
     public Map<String, String> headers() {
-        return headers == null ? null :Collections.unmodifiableMap(headers);
+        return headers == null ? null : Collections.unmodifiableMap(headers);
     }
 
     public String header(String name) {
@@ -118,7 +118,7 @@ public final class Request implements Serializable {
             this.fileName = fileName;
             return this;
         }
-        
+
         public Builder extra(String extra) {
             this.extra = extra;
             return this;

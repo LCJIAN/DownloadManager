@@ -13,7 +13,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-// TODO -2 delete download bug(shoud delete chunk files) -1. file conflict check,disk space check 1.priority 3.download statistics 4.okhttp downloader 5.sqlite persistence 6. rxjava support
+// TODO -1. file conflict check,disk space check 1.priority 3.download statistics 4.okhttp downloader 5.sqlite persistence 6. rxjava support
 public class DownloadManager {
 
     private final String defaultDestination;
@@ -26,7 +26,7 @@ public class DownloadManager {
     private final CopyOnWriteArrayList<Listener> listeners;
     private final int maxDownloadCount;
     private final Semaphore semaphore;
-    
+
     private final List<Request> requests;
     private final List<Download> downloads;
     private final Map<Request, Download> requestDownloadMap;
@@ -36,7 +36,7 @@ public class DownloadManager {
         requests = new ArrayList<>();
         requestDownloadMap = new HashMap<>();
         listeners = new CopyOnWriteArrayList<>();
-        
+
         actionThreadPool = Executors.newSingleThreadExecutor();
 
         defaultDestination = builder.defaultDestination;
@@ -94,19 +94,40 @@ public class DownloadManager {
                     }
                     if (download.getDownloadStatus().getStatus() != DownloadStatus.IDLE
                             && download.getDownloadStatus().getStatus() != DownloadStatus.COMPLETE) {
-                        download.startAsync();
+                        download.resumeAsync();
                     }
                 }
             }
         });
     }
-    
+
     public void addListener(Listener listener) {
         listeners.add(listener);
     }
 
     public void removeListener(Listener listener) {
         listeners.remove(listener);
+    }
+
+    public Request getRequest(String id) {
+        for (Request request : requests) {
+            if (Utils.equals(id, request.id())) {
+                return request;
+            }
+        }
+        return null;
+    }
+
+    public Download getDownload(Request request) {
+        return requestDownloadMap.get(request);
+    }
+
+    public List<Request> getRequests() {
+        return Collections.unmodifiableList(requests);
+    }
+
+    public List<Download> getDownloads() {
+        return Collections.unmodifiableList(downloads);
     }
 
     public void enqueue(final Request request) {
@@ -135,13 +156,33 @@ public class DownloadManager {
                             listener.onDownloadCreate(download);
                         }
                     }
-                    download.startAsync();
+                    download.resumeAsync();
                 }
             }
         });
     }
 
-    public void delete(final Download download) {
+    public void resume(Download download) {
+        download.resumeAsync();
+    }
+
+    public void pause(Download download) {
+        download.pauseAsync();
+    }
+
+    public void resumeAll() {
+        for (Download download : downloads) {
+            download.resumeAsync();
+        }
+    }
+
+    public void pauseAll() {
+        for (Download download : downloads) {
+            download.pauseAsync();
+        }
+    }
+
+    public void delete(final Download download, final boolean deleteFile) {
         actionThreadPool.execute(new Runnable() {
             @Override
             public void run() {
@@ -155,58 +196,14 @@ public class DownloadManager {
                         listener.onDownloadDestroy(download);
                     }
                 }
-                download.stopAsync();
+                download.stopAsync(deleteFile);
             }
         });
     }
 
-    public void delete(Request request) {
-        delete(getDownload(request));
-    }
-
-    public void start(Download download) {
-        download.startAsync();
-    }
-
-    public void pause(Download download) {
-        download.pauseAsync();
-    }
-
-    public void pauseAll() {
-        for (Download download : downloads) {
-            download.pauseAsync();
-        }
-    }
-
-    public void startAll() {
-        for (Download download : downloads) {
-            download.startAsync();
-        }
-    }
-
-    public void start(Request request) {
-        getDownload(request).startAsync();
-    }
-
-    public void pause(Request request) {
-        getDownload(request).pauseAsync();
-    }
-
-    public List<Request> getRequests() {
-        return Collections.unmodifiableList(requests);
-    }
-
-    public List<Download> getDownloads() {
-        return Collections.unmodifiableList(downloads);
-    }
-
-    public Download getDownload(Request request) {
-        return requestDownloadMap.get(request);
-    }
-
     public void shutdown() {
         for (Download download : downloads) {
-            download.stopAsync();
+            download.stopAsync(false);
         }
         actionThreadPool.shutdown();
         chunkDownloadThreadPool.shutdown();
@@ -257,12 +254,12 @@ public class DownloadManager {
             this.downloadAPI = downloadAPI;
             return this;
         }
-        
+
         public Builder retryPolicyFactory(RetryPolicy.Factory retryPolicyFactory) {
             this.retryPolicyFactory = retryPolicyFactory;
             return this;
         }
-        
+
         public Builder maxDownloadCount(int maxDownloadCount) {
             if (maxDownloadCount < 1) {
                 throw new IllegalArgumentException("The max download count can not be zero.");

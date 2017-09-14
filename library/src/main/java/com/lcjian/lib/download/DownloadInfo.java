@@ -29,7 +29,7 @@ public class DownloadInfo implements Serializable {
     public RangeInfo rangeInfo() {
         return rangeInfo;
     }
-    
+
     public long createTime() {
         return createTime;
     }
@@ -68,7 +68,7 @@ public class DownloadInfo implements Serializable {
             this.rangeInfo = rangeInfo;
             return this;
         }
-        
+
         public Builder createTime(long createTime) {
             this.createTime = createTime;
             return this;

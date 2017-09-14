@@ -29,7 +29,7 @@ public final class ChunkDownload {
         this.chunkDownloadStatus = chunkDownloadStatus;
         this.listeners = new CopyOnWriteArrayList<>();
         this.chunkDownloader = new ChunkDownloader();
-        
+
         int status = this.chunkDownloadStatus == null ? ChunkDownloadStatus.IDLE : this.chunkDownloadStatus.getStatus();
         if (status == ChunkDownloadStatus.IDLE
                 || status == ChunkDownloadStatus.PENDING
@@ -143,7 +143,6 @@ public final class ChunkDownload {
     }
 
     class ChunkDownloader implements Runnable {
-
 
         @Override
         public void run() {
