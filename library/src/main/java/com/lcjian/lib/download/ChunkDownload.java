@@ -1,5 +1,7 @@
 package com.lcjian.lib.download;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
@@ -209,10 +211,11 @@ public final class ChunkDownload {
                 notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("null inputStream")));
                 return;
             }
+            inputStream = new BufferedInputStream(inputStream);
             OutputStream outputStream = null;
             try {
                 notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.DOWNLOADING));
-                outputStream = new ProgressOutputStream(new FileOutputStream(file, rangeSupportable),
+                outputStream = new ProgressOutputStream(new BufferedOutputStream(new FileOutputStream(file, rangeSupportable), 204800),
                         new ProgressOutputStream.ProgressListener() {
                             @Override
                             public void progressChanged(int delta) {
