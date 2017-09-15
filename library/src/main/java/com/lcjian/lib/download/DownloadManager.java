@@ -92,8 +92,9 @@ public class DownloadManager {
                             listener.onDownloadCreate(download);
                         }
                     }
-                    if (download.getDownloadStatus().getStatus() != DownloadStatus.IDLE
-                            && download.getDownloadStatus().getStatus() != DownloadStatus.COMPLETE) {
+                    if (downloadStatus == null
+                            || (downloadStatus.getStatus() != DownloadStatus.IDLE
+                            && downloadStatus.getStatus() != DownloadStatus.COMPLETE)) {
                         download.resumeAsync();
                     }
                 }

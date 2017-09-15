@@ -27,7 +27,7 @@ public class Test {
                     @Override
                     public void onDownloadStatusChanged(Download download, DownloadStatus downloadStatus) {
                         System.out.println("downloadStatus:" + downloadStatus.getStatus());
-                        if (downloadStatus.getStatus() == 5) {
+                        if (downloadStatus.getStatus() == DownloadStatus.ERROR) {
                             downloadStatus.getThrowable().printStackTrace();
                         }/* else if (downloadStatus.getStatus() == DownloadStatus.MERGE_END) {
                             downloadManager.shutdown();
@@ -53,6 +53,7 @@ public class Test {
                 });
             }
         });
-        downloadManager.enqueue(new Request.Builder().url("https://file.zhen22.com/app_dev/android/assets/4101/map/house_filter.json").build());
+        downloadManager.enqueue(new Request.Builder().url("http://imtt.dd.qq.com/16891/D5C206B2E152D565B05E086800B7DC99.apk").build());
+//        downloadManager.enqueue(new Request.Builder().url("https://file.zhen22.com/app_dev/android/assets/4101/map/house_filter.json").build());
     }
 }

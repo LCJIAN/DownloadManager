@@ -126,7 +126,9 @@ public final class Download {
         if (!pauseFlag.get()) {
             pauseFlag.getAndSet(true);
         } else {
-            // This download is paused or pausing.
+            if (!stopFlag.get()) {
+                // This download is paused or pausing.
+            }
         }
     }
 
