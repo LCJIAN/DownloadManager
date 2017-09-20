@@ -79,6 +79,7 @@ public class HttpURLConnectionDownloadAPI implements DownloadAPI {
             String contentLength = connection.getHeaderField("Content-Length");
             return new DownloadInfo.InitInfo.Builder()
                     .fileName(fileName(url, connection.getHeaderField("Content-Disposition")))
+                    .mimeType(connection.getHeaderField("Content-Type"))
                     .lastModified(connection.getHeaderField("Last-Modified"))
                     .contentLength(Utils.isEmpty(contentLength) ? -1 : Long.parseLong(contentLength))
                     .build();
@@ -89,6 +90,7 @@ public class HttpURLConnectionDownloadAPI implements DownloadAPI {
                 String contentLength = connection.getHeaderField("Content-Length");
                 return new DownloadInfo.InitInfo.Builder()
                         .fileName(fileName(url, connection.getHeaderField("Content-Disposition")))
+                        .mimeType(connection.getHeaderField("Content-Type"))
                         .lastModified(connection.getHeaderField("Last-Modified"))
                         .contentLength(Utils.isEmpty(contentLength) ? -1 : Long.parseLong(contentLength))
                         .build();

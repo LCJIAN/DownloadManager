@@ -46,7 +46,7 @@ public class DownloadManager {
         downloadAPI = builder.downloadAPI;
         retryPolicyFactory = builder.retryPolicyFactory;
         maxDownloadCount = builder.maxDownloadCount;
-        semaphore = new Semaphore(maxDownloadCount);
+        semaphore = new Semaphore(maxDownloadCount, true);
         init();
     }
 
@@ -197,14 +197,14 @@ public class DownloadManager {
                         listener.onDownloadDestroy(download);
                     }
                 }
-                download.stopAsync(deleteFile);
+                download.shutdownAsync(deleteFile);
             }
         });
     }
 
     public void shutdown() {
         for (Download download : downloads) {
-            download.stopAsync(false);
+            download.shutdownAsync(false);
         }
         actionThreadPool.shutdown();
         chunkDownloadThreadPool.shutdown();

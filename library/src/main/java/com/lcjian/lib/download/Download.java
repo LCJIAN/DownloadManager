@@ -25,20 +25,21 @@ public final class Download {
     private final DownloadAPI downloadAPI;
     private final RetryPolicy retryPolicy;
     private final PersistenceAdapter persistenceAdapter;
-    private final ExecutorService actionThreadPool;
     private final ExecutorService chunkDownloadThreadPool;
     private final String defaultDestination;
     private final CopyOnWriteArrayList<DownloadListener> listeners;
     private final AtomicLong downloadedBytes;
     private final AtomicBoolean pauseFlag = new AtomicBoolean(true);
     private final AtomicBoolean retryFlag = new AtomicBoolean(false);
-    private final AtomicBoolean stopFlag = new AtomicBoolean(false);
+    private final AtomicBoolean shutdownFlag = new AtomicBoolean(false);
     private final AtomicBoolean deleteFlag = new AtomicBoolean(false);
     private final Semaphore semaphore;
+    private ExecutorService actionThreadPool;
     private List<ChunkDownload> chunkDownloads;
     private DownloadStatus downloadStatus;
     private DownloadInfo downloadInfo;
-    private boolean stopped = false;
+    private boolean shutdown = false;
+    private boolean needRelease = true;
 
     Download(Request request, DownloadStatus downloadStatus, DownloadInfo downloadInfo,
              List<ChunkDownload> chunkDownloads, String defaultDestination, Splitter splitter, DownloadAPI downloadAPI,
@@ -56,12 +57,7 @@ public final class Download {
         this.semaphore = semaphore;
         this.downloadedBytes = new AtomicLong();
         this.listeners = new CopyOnWriteArrayList<>();
-        /*
-         * Use only a single thread to keep download status and data correct.
-         */
-        ThreadPoolExecutor temp = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-        temp.allowCoreThreadTimeOut(true);
-        this.actionThreadPool = temp;
+
         if (this.chunkDownloads == null) {
             this.chunkDownloads = new ArrayList<>();
         } else {
@@ -125,8 +121,12 @@ public final class Download {
     void pauseAsync() {
         if (!pauseFlag.get()) {
             pauseFlag.getAndSet(true);
+            List<Runnable> runnableList = actionThreadPool.shutdownNow();
+            for (Runnable runnable : runnableList) {
+                execute(runnable);
+            }
         } else {
-            if (!stopFlag.get()) {
+            if (!shutdownFlag.get()) {
                 // This download is paused or pausing.
             }
         }
@@ -134,26 +134,29 @@ public final class Download {
 
     void resumeAsync() {
         if (pauseFlag.get()) {
-            actionThreadPool.execute(new Runnable() {
+            execute(new Runnable() {
                 @Override
                 public void run() {
+                    pauseFlag.getAndSet(false);
                     int st = downloadStatus.getStatus();
                     if (retryFlag.get()
                             || st == DownloadStatus.IDLE
                             || st == DownloadStatus.ERROR
                             || st == DownloadStatus.MERGE_ERROR) {
-                        notifyDownloadStatus(new DownloadStatus(DownloadStatus.PENDING));
-                        try {
-                            if (retryFlag.get()) {
-                                retryFlag.getAndSet(false);
-                            } else {
+                        if (retryFlag.get()) {
+                            retryFlag.getAndSet(false);
+                        } else {
+                            try {
+                                notifyDownloadStatus(new DownloadStatus(DownloadStatus.PENDING));
                                 semaphore.acquire();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                                needRelease = false;
+                                notifyDownloadStatus(new DownloadStatus(DownloadStatus.IDLE));
+                                return;
                             }
-                            pauseFlag.getAndSet(false);
-                            initialize();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
                         }
+                        initialize();
                     } else {
                         // This download is running.
                     }
@@ -164,12 +167,15 @@ public final class Download {
         }
     }
 
-    void stopAsync(boolean deleteFile) {
-        if (!stopFlag.get()) {
-            stopFlag.getAndSet(true);
+    void shutdownAsync(boolean deleteFile) {
+        if (!shutdownFlag.get()) {
+            // use for winding up when this download is paused.
+            shutdownFlag.getAndSet(true);
             deleteFlag.getAndSet(deleteFile);
             pauseAsync();
-            actionThreadPool.execute(new Runnable() {
+
+            // If this download is paused already, we wind up this download directly.
+            execute(new Runnable() {
                 @Override
                 public void run() {
                     int st = downloadStatus.getStatus();
@@ -177,7 +183,7 @@ public final class Download {
                             || st == DownloadStatus.ERROR
                             || st == DownloadStatus.MERGE_ERROR
                             || st == DownloadStatus.COMPLETE) {
-                        checkStop();
+                        windUp();
                     }
                 }
             });
@@ -213,8 +219,10 @@ public final class Download {
                     || st == DownloadStatus.ERROR
                     || st == DownloadStatus.MERGE_ERROR
                     || st == DownloadStatus.COMPLETE) {
-                semaphore.release();
-                checkStop();
+                if (needRelease) {
+                    semaphore.release();
+                }
+                windUp();
             }
             for (DownloadListener downloadListener : listeners) {
                 downloadListener.onDownloadStatusChanged(Download.this, downloadStatus);
@@ -223,7 +231,7 @@ public final class Download {
     }
 
     void notifyDownloadStatusAsync(ChunkDownloadStatus status) {
-        actionThreadPool.execute(new Runnable() {
+        execute(new Runnable() {
             @Override
             public void run() {
                 DownloadStatus tempDownloadStatus = null;
@@ -266,8 +274,20 @@ public final class Download {
         });
     }
 
-    private void checkStop() {
-        if (stopFlag.get() && !stopped) {
+    private void execute(Runnable runnable) {
+        if (actionThreadPool == null || actionThreadPool.isShutdown()) {
+             /*
+              * Use only a single thread to keep download status and data correct.
+              */
+            ThreadPoolExecutor temp = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+            temp.allowCoreThreadTimeOut(true);
+            actionThreadPool = temp;
+            actionThreadPool.execute(runnable);
+        }
+    }
+
+    private void windUp() {
+        if (shutdownFlag.get() && !shutdown) {
             actionThreadPool.shutdown();
             listeners.clear();
             if (deleteFlag.get()) {
@@ -286,7 +306,7 @@ public final class Download {
                     chunkDownloads.clear();
                 }
             }
-            stopped = true;
+            shutdown = true;
         }
     }
 

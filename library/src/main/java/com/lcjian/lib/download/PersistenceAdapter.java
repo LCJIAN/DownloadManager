@@ -7,7 +7,7 @@ public interface PersistenceAdapter {
     List<DownloadRecord> getDownloadRecords();
 
     /**
-     * Save the request when delete a download task.
+     * delete the request and it's whole info when delete a download task.
      */
     void deleteRequest(Request request);
 

@@ -93,11 +93,13 @@ public class DownloadInfo implements Serializable {
         private static final long serialVersionUID = 1L;
 
         private final String fileName;
+        private final String mimeType;
         private final String lastModified;
         private final Long contentLength;
 
         private InitInfo(Builder builder) {
             this.fileName = builder.fileName;
+            this.mimeType = builder.mimeType;
             this.lastModified = builder.lastModified;
             this.contentLength = builder.contentLength;
         }
@@ -121,6 +123,7 @@ public class DownloadInfo implements Serializable {
         public static class Builder {
 
             private String fileName;
+            private String mimeType;
             private String lastModified;
             private Long contentLength;
 
@@ -129,12 +132,18 @@ public class DownloadInfo implements Serializable {
 
             private Builder(InitInfo initInfo) {
                 this.fileName = initInfo.fileName;
+                this.mimeType = initInfo.mimeType;
                 this.lastModified = initInfo.lastModified;
                 this.contentLength = initInfo.contentLength;
             }
 
             public Builder fileName(String fileName) {
                 this.fileName = fileName;
+                return this;
+            }
+
+            public Builder mimeType(String mimeType) {
+                this.mimeType = mimeType;
                 return this;
             }
 

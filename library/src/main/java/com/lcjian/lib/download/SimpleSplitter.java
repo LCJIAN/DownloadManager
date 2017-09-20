@@ -38,7 +38,7 @@ public class SimpleSplitter implements Splitter {
                 }
             }
         } else {
-            chunks.add(new Chunk.Builder().start(0).end(-1).file(file + ".part" + 1).build());
+            chunks.add(new Chunk.Builder().start(0).end(-1).file(file + ".download.part" + 1).build());
         }
         return chunks;
     }

@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A simple implemention of {@link PersistenceAdapter}. It get the whole data firstly,
+ * A simple implementation of {@link PersistenceAdapter}. It get the whole data firstly,
  * then modify the specific item, re-write the whole data at last, so don't use this to
  * download excessively.
  */
