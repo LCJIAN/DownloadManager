@@ -1,9 +1,8 @@
 # DownloadManager
-A simple and light-weight multi-thread download manager for Java and Android
+A simple and light-weight but flexible http multi-thread download manager for Java and Android
 
 ## TODO
-1. priority
-2. download statistics
-3. okhttp downloader
-4. sqlite persistence
-5. rxjava support
+1. download statistics
+2. okhttp downloader
+3. sqlite persistence
+4. rxjava support
