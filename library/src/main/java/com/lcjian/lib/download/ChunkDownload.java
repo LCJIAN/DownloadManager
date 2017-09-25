@@ -81,7 +81,7 @@ public final class ChunkDownload {
     }
 
     void notifyDownloadStatus(final ChunkDownloadStatus status) {
-        download.getActionThreadPool().execute(new Runnable() {
+        download.execute(new Runnable() {
             @Override
             public void run() {
                 chunkDownloadStatus = status;
@@ -90,7 +90,7 @@ public final class ChunkDownload {
                 for (ChunkDownloadListener chunkDownloadListener : listeners) {
                     chunkDownloadListener.onDownloadStatusChanged(ChunkDownload.this, chunkDownloadStatus);
                 }
-                download.notifyDownloadStatusAsync(chunkDownloadStatus);
+                download.notifyDownloadStatus(chunkDownloadStatus);
             }
         });
     }
@@ -164,7 +164,7 @@ public final class ChunkDownload {
                     } else {
                         notifyDownloadProgress(file.length());
                         if (start - 1 == end) {
-                            notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.END));
+                            notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.COMPLETE));
                             return;
                         }
                     }
@@ -232,7 +232,7 @@ public final class ChunkDownload {
                 if (download.getPauseFlag()) {
                     notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.IDLE));
                 } else {
-                    notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.END));
+                    notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.COMPLETE));
                 }
             } catch (Exception e) {
                 notifyDownloadStatus(new ChunkDownloadStatus(e));

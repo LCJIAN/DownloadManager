@@ -110,10 +110,6 @@ public final class Download {
         listeners.remove(downloadListener);
     }
 
-    ExecutorService getActionThreadPool() {
-        return actionThreadPool;
-    }
-
     boolean getPauseFlag() {
         return pauseFlag.get();
     }
@@ -230,51 +226,46 @@ public final class Download {
         }
     }
 
-    void notifyDownloadStatusAsync(ChunkDownloadStatus status) {
-        execute(new Runnable() {
-            @Override
-            public void run() {
-                DownloadStatus tempDownloadStatus = null;
-                for (ChunkDownload chunkDownload : chunkDownloads) {
-                    if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.DOWNLOADING) {
-                        tempDownloadStatus = new DownloadStatus(DownloadStatus.DOWNLOADING);
-                        break;
-                    }
-                }
-                if (tempDownloadStatus == null) {
-                    for (ChunkDownload chunkDownload : chunkDownloads) {
-                        if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.PENDING) {
-                            tempDownloadStatus = new DownloadStatus(DownloadStatus.CHUNK_PENDING);
-                            break;
-                        }
-                    }
-                }
-                if (tempDownloadStatus == null) {
-                    for (ChunkDownload chunkDownload : chunkDownloads) {
-                        if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.IDLE) {
-                            tempDownloadStatus = new DownloadStatus(DownloadStatus.IDLE);
-                            break;
-                        }
-                    }
-                }
-                if (tempDownloadStatus == null) {
-                    for (ChunkDownload chunkDownload : chunkDownloads) {
-                        if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.ERROR) {
-                            tempDownloadStatus = new DownloadStatus(chunkDownload.getChunkDownloadStatus().getThrowable());
-                            break;
-                        }
-                    }
-                }
-                if (tempDownloadStatus == null) {
-                    merge();
-                } else {
-                    notifyDownloadStatus(tempDownloadStatus);
+    void notifyDownloadStatus(ChunkDownloadStatus status) {
+        DownloadStatus tempDownloadStatus = null;
+        for (ChunkDownload chunkDownload : chunkDownloads) {
+            if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.DOWNLOADING) {
+                tempDownloadStatus = new DownloadStatus(DownloadStatus.DOWNLOADING);
+                break;
+            }
+        }
+        if (tempDownloadStatus == null) {
+            for (ChunkDownload chunkDownload : chunkDownloads) {
+                if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.PENDING) {
+                    tempDownloadStatus = new DownloadStatus(DownloadStatus.CHUNK_PENDING);
+                    break;
                 }
             }
-        });
+        }
+        if (tempDownloadStatus == null) {
+            for (ChunkDownload chunkDownload : chunkDownloads) {
+                if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.IDLE) {
+                    tempDownloadStatus = new DownloadStatus(DownloadStatus.IDLE);
+                    break;
+                }
+            }
+        }
+        if (tempDownloadStatus == null) {
+            for (ChunkDownload chunkDownload : chunkDownloads) {
+                if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.ERROR) {
+                    tempDownloadStatus = new DownloadStatus(chunkDownload.getChunkDownloadStatus().getThrowable());
+                    break;
+                }
+            }
+        }
+        if (tempDownloadStatus == null) {
+            merge();
+        } else {
+            notifyDownloadStatus(tempDownloadStatus);
+        }
     }
 
-    private void execute(Runnable runnable) {
+    void execute(Runnable runnable) {
         if (actionThreadPool == null || actionThreadPool.isShutdown()) {
              /*
               * Use only a single thread to keep download status and data correct.
@@ -282,8 +273,8 @@ public final class Download {
             ThreadPoolExecutor temp = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
             temp.allowCoreThreadTimeOut(true);
             actionThreadPool = temp;
-            actionThreadPool.execute(runnable);
         }
+        actionThreadPool.execute(runnable);
     }
 
     private void windUp() {
@@ -379,9 +370,9 @@ public final class Download {
         if (downloadFile.exists()) {
             throw new RuntimeException("File conflict");
         }
-        if (downloadFile.getUsableSpace() < downloadInfo.initInfo().contentLength()) {
-            throw new RuntimeException("Insufficient disk space");
-        }
+//        if (downloadFile.getUsableSpace() < downloadInfo.initInfo().contentLength()) {
+//            throw new RuntimeException("Insufficient disk space");
+//        }
         List<Chunk> chunks = splitter.split(
                 downloadFile.getAbsolutePath(),
                 downloadInfo.initInfo().contentLength(),

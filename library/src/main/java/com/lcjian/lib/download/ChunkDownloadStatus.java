@@ -8,7 +8,7 @@ public class ChunkDownloadStatus implements Serializable {
     public static final int PENDING = 1;
     public static final int DOWNLOADING = 2;
     public static final int ERROR = 3;
-    public static final int END = 4;
+    public static final int COMPLETE = 4;
     /**
      * serialVersionUID
      */

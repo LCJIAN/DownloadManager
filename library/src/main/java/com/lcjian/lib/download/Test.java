@@ -21,12 +21,44 @@ public class Test {
 
                     @Override
                     public void onProgress(Download download, long downloadedBytes) {
-                        System.out.println("downloadedBytes:" + downloadedBytes);
+//                        System.out.println(download.getRequest().fileName() + ":" + Utils.format(downloadedBytes, 2));
                     }
 
                     @Override
                     public void onDownloadStatusChanged(Download download, DownloadStatus downloadStatus) {
-                        System.out.println("downloadStatus:" + downloadStatus.getStatus());
+                        String statusStr = "";
+                        switch (downloadStatus.getStatus()) {
+                        case DownloadStatus.IDLE:
+                            statusStr = "停止";
+                            break;
+                        case DownloadStatus.PENDING:
+                            statusStr = "准备";
+                            break;
+                        case DownloadStatus.INITIALIZING:
+                            statusStr = "初始化";
+                            break;
+                        case DownloadStatus.CHUNK_PENDING:
+                            statusStr = "分块准备";
+                            break;
+                        case DownloadStatus.DOWNLOADING:
+                            statusStr = "下载";
+                            break;
+                        case DownloadStatus.ERROR:
+                            statusStr = "出错";
+                            break;
+                        case DownloadStatus.MERGING:
+                            statusStr = "合并";
+                            break;
+                        case DownloadStatus.MERGE_ERROR:
+                            statusStr = "合并出错";
+                            break;
+                        case DownloadStatus.COMPLETE:
+                            statusStr = "完成";
+                            break;
+                        default:
+                            break;
+                        }
+                        System.out.println(download.getRequest().url() + ":" + statusStr);
                         if (downloadStatus.getStatus() == DownloadStatus.ERROR) {
                             downloadStatus.getThrowable().printStackTrace();
                         }/* else if (downloadStatus.getStatus() == DownloadStatus.MERGE_END) {
@@ -53,7 +85,10 @@ public class Test {
                 });
             }
         });
+        downloadManager.enqueue(new Request.Builder().url("http://videodownload.vrgameserver.com/videos/video/video-65ce58ee9b1849db8edf6480351533fb/video-65ce58ee9b1849db8edf6480351533fb.mp4").build());
+        downloadManager.enqueue(new Request.Builder().url("http://p.gdown.baidu.com/4ce40b0168c8638f9b0343d13d4f86ac5e4ade86dff3de0fc1250aa4f4faf9712567f652f4334a3e3f72bebfb8dd5d3aeade61a92ad308d2329745d277aa52a260d4f44f27564aa48932676c20f08d1c93821d2a89f65ff69622f5e771170f83bcc1365b6767ccff13c650e843d54771").build());
+        downloadManager.enqueue(new Request.Builder().url("http://w73.xitongxz.net:808/201709/02/LB_GHOST_WIN7_SP1_X86_V2017_09.iso").build());
         downloadManager.enqueue(new Request.Builder().url("http://imtt.dd.qq.com/16891/D5C206B2E152D565B05E086800B7DC99.apk").build());
-//        downloadManager.enqueue(new Request.Builder().url("https://file.zhen22.com/app_dev/android/assets/4101/map/house_filter.json").build());
+        downloadManager.enqueue(new Request.Builder().url("https://file.zhen22.com/app_dev/android/assets/4101/map/house_filter.json").build());
     }
 }
