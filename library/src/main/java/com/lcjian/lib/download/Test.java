@@ -21,42 +21,42 @@ public class Test {
 
                     @Override
                     public void onProgress(Download download, long downloadedBytes) {
-//                        System.out.println(download.getRequest().fileName() + ":" + Utils.format(downloadedBytes, 2));
+//                        System.out.println(download.getRequest().fileName() + ":" + Utils.formatBytes(downloadedBytes, 2));
                     }
 
                     @Override
                     public void onDownloadStatusChanged(Download download, DownloadStatus downloadStatus) {
                         String statusStr = "";
                         switch (downloadStatus.getStatus()) {
-                        case DownloadStatus.IDLE:
-                            statusStr = "停止";
-                            break;
-                        case DownloadStatus.PENDING:
-                            statusStr = "准备";
-                            break;
-                        case DownloadStatus.INITIALIZING:
-                            statusStr = "初始化";
-                            break;
-                        case DownloadStatus.CHUNK_PENDING:
-                            statusStr = "分块准备";
-                            break;
-                        case DownloadStatus.DOWNLOADING:
-                            statusStr = "下载";
-                            break;
-                        case DownloadStatus.ERROR:
-                            statusStr = "出错";
-                            break;
-                        case DownloadStatus.MERGING:
-                            statusStr = "合并";
-                            break;
-                        case DownloadStatus.MERGE_ERROR:
-                            statusStr = "合并出错";
-                            break;
-                        case DownloadStatus.COMPLETE:
-                            statusStr = "完成";
-                            break;
-                        default:
-                            break;
+                            case DownloadStatus.IDLE:
+                                statusStr = "下载暂停";
+                                break;
+                            case DownloadStatus.PENDING:
+                                statusStr = "下载准备中";
+                                break;
+                            case DownloadStatus.INITIALIZING:
+                                statusStr = "下载初始化中";
+                                break;
+                            case DownloadStatus.CHUNK_PENDING:
+                                statusStr = "下载分块准备中";
+                                break;
+                            case DownloadStatus.DOWNLOADING:
+                                statusStr = "下载中";
+                                break;
+                            case DownloadStatus.ERROR:
+                                statusStr = "下载出错了";
+                                break;
+                            case DownloadStatus.MERGING:
+                                statusStr = "下载合并中";
+                                break;
+                            case DownloadStatus.MERGE_ERROR:
+                                statusStr = "下载合并出错了";
+                                break;
+                            case DownloadStatus.COMPLETE:
+                                statusStr = "下载完成";
+                                break;
+                            default:
+                                break;
                         }
                         System.out.println(download.getRequest().url() + ":" + statusStr);
                         if (downloadStatus.getStatus() == DownloadStatus.ERROR) {

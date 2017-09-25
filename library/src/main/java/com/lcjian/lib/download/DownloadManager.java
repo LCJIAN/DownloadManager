@@ -13,6 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 // TODO 1.download statistics 2.okhttp downloader 3.sqlite persistence 4. rxjava support
 public class DownloadManager {
@@ -27,6 +28,7 @@ public class DownloadManager {
     private final CopyOnWriteArrayList<Listener> listeners;
     private final int maxDownloadCount;
     private final Semaphore semaphore;
+    private final Logger logger;
 
     private final List<Request> requests;
     private final List<Download> downloads;
@@ -48,6 +50,7 @@ public class DownloadManager {
         retryPolicyFactory = builder.retryPolicyFactory;
         maxDownloadCount = builder.maxDownloadCount;
         semaphore = new Semaphore(maxDownloadCount, true);
+        logger = builder.logger;
         init();
     }
 
@@ -69,7 +72,7 @@ public class DownloadManager {
                     if (chunkRecords != null) {
                         for (DownloadRecord.ChunkRecord chunkRecord : chunkRecords) {
                             chunkDownloads.add(new ChunkDownload(request, chunkRecord.getChunk(),
-                                    chunkRecord.getChunkDownloadStatus(), downloadAPI, persistenceAdapter));
+                                    chunkRecord.getChunkDownloadStatus(), downloadAPI, persistenceAdapter, logger));
                         }
                     }
 
@@ -84,7 +87,8 @@ public class DownloadManager {
                             retryPolicyFactory.createPolicy(),
                             persistenceAdapter,
                             chunkDownloadThreadPool,
-                            semaphore);
+                            semaphore,
+                            logger);
                     requests.add(request);
                     downloads.add(download);
                     requestDownloadMap.put(request, download);
@@ -148,7 +152,8 @@ public class DownloadManager {
                             retryPolicyFactory.createPolicy(),
                             persistenceAdapter,
                             chunkDownloadThreadPool,
-                            semaphore);
+                            semaphore,
+                            logger);
                     requests.add(request);
                     downloads.add(download);
                     requestDownloadMap.put(request, download);
@@ -241,6 +246,7 @@ public class DownloadManager {
         private DownloadAPI downloadAPI;
         private RetryPolicy.Factory retryPolicyFactory;
         private int maxDownloadCount;
+        private Logger logger;
 
         public Builder() {
         }
@@ -283,6 +289,11 @@ public class DownloadManager {
             return this;
         }
 
+        public Builder logger(Logger logger) {
+            this.logger = logger;
+            return this;
+        }
+
         public DownloadManager build() {
             if (Utils.isEmpty(defaultDestination))
                 throw new NullPointerException("The default download destination is empty.");
@@ -305,6 +316,9 @@ public class DownloadManager {
             }
             if (maxDownloadCount == 0) {
                 maxDownloadCount = 5;
+            }
+            if (logger == null) {
+                logger = Logger.getLogger("DownloadManager");
             }
             return new DownloadManager(this);
         }

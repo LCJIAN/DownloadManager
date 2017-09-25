@@ -17,6 +17,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 
 public final class Download {
 
@@ -34,6 +35,7 @@ public final class Download {
     private final AtomicBoolean shutdownFlag = new AtomicBoolean(false);
     private final AtomicBoolean deleteFlag = new AtomicBoolean(false);
     private final Semaphore semaphore;
+    private final Logger logger;
     private ExecutorService actionThreadPool;
     private List<ChunkDownload> chunkDownloads;
     private DownloadStatus downloadStatus;
@@ -41,9 +43,9 @@ public final class Download {
     private boolean shutdown = false;
     private boolean needRelease = true;
 
-    Download(Request request, DownloadStatus downloadStatus, DownloadInfo downloadInfo,
-             List<ChunkDownload> chunkDownloads, String defaultDestination, Splitter splitter, DownloadAPI downloadAPI,
-             RetryPolicy retryPolicy, PersistenceAdapter persistenceAdapter, ExecutorService chunkDownloadThreadPool, Semaphore semaphore) {
+    Download(Request request, DownloadStatus downloadStatus, DownloadInfo downloadInfo, List<ChunkDownload> chunkDownloads,
+             String defaultDestination, Splitter splitter, DownloadAPI downloadAPI, RetryPolicy retryPolicy, PersistenceAdapter persistenceAdapter,
+             ExecutorService chunkDownloadThreadPool, Semaphore semaphore, Logger logger) {
         this.request = request;
         this.downloadStatus = downloadStatus;
         this.downloadInfo = downloadInfo;
@@ -55,6 +57,7 @@ public final class Download {
         this.chunkDownloadThreadPool = chunkDownloadThreadPool;
         this.defaultDestination = defaultDestination;
         this.semaphore = semaphore;
+        this.logger = logger;
         this.downloadedBytes = new AtomicLong();
         this.listeners = new CopyOnWriteArrayList<>();
 
@@ -123,7 +126,7 @@ public final class Download {
             }
         } else {
             if (!shutdownFlag.get()) {
-                // This download is paused or pausing.
+                logger.warning(Utils.formatString("Download(%s) is paused or pausing.", request.simplifiedId()));
             }
         }
     }
@@ -154,12 +157,12 @@ public final class Download {
                         }
                         initialize();
                     } else {
-                        // This download is running.
+                        logger.warning(Utils.formatString("Download(%s) is running.", request.simplifiedId()));
                     }
                 }
             });
         } else {
-            // This download is running;
+            logger.warning(Utils.formatString("Download(%s) is running.", request.simplifiedId()));
         }
     }
 
@@ -184,7 +187,7 @@ public final class Download {
                 }
             });
         } else {
-            // This download is stopped or stopping;
+            logger.warning(Utils.formatString("Download(%s) is stopped or stopping.", request.simplifiedId()));
         }
     }
 
@@ -192,6 +195,14 @@ public final class Download {
         long bytes = this.downloadedBytes.addAndGet(delta);
         for (DownloadListener downloadListener : listeners) {
             downloadListener.onProgress(this, bytes);
+        }
+        long length = downloadInfo.initInfo().contentLength();
+        if (length > 0) {
+            logger.fine(Utils.formatString("%s %s download of download(%s)",
+                    Utils.formatBytes(bytes, 2), Utils.formatPercent(bytes / (double) length), request.simplifiedId()));
+        } else {
+            logger.fine(Utils.formatString("%s download of download(%s)",
+                    Utils.formatBytes(bytes, 2), request.simplifiedId()));
         }
     }
 
@@ -205,6 +216,7 @@ public final class Download {
                 for (DownloadListener downloadListener : listeners) {
                     downloadListener.onRetry(Download.this, status.getThrowable());
                 }
+                logger.info(Utils.formatString("Download(%s) retry.", request.simplifiedId()));
                 resumeAsync();
                 return;
             }
@@ -223,6 +235,7 @@ public final class Download {
             for (DownloadListener downloadListener : listeners) {
                 downloadListener.onDownloadStatusChanged(Download.this, downloadStatus);
             }
+            logger.info(Utils.formatString("Download(%s)'s status:%d", request.simplifiedId(), downloadStatus.getStatus()));
         }
     }
 
@@ -285,13 +298,13 @@ public final class Download {
                 File downloadFile = getDownloadFile();
                 if (downloadFile != null && downloadFile.exists()) {
                     if (!downloadFile.delete()) {
-
+                        logger.warning(Utils.formatString("Can not delete download(%s)'s file(%s) when wind up", request.simplifiedId(), downloadFile.getName()));
                     }
                 }
                 if (chunkDownloads != null && !chunkDownloads.isEmpty()) {
                     for (ChunkDownload chunkDownload : chunkDownloads) {
                         if (!new File(chunkDownload.getChunk().file()).delete()) {
-
+                            logger.warning(Utils.formatString("Can not delete download(%s)'s chunk file(%s) when wind up", request.simplifiedId(), chunkDownload.getChunk().file()));
                         }
                     }
                     chunkDownloads.clear();
@@ -330,7 +343,7 @@ public final class Download {
                     if (chunkDownloads != null && !chunkDownloads.isEmpty()) {
                         for (ChunkDownload chunkDownload : chunkDownloads) {
                             if (!new File(chunkDownload.getChunk().file()).delete()) {
-
+                                logger.warning(Utils.formatString("Can not delete download(%s)'s chunk file(%s) when re-split.", request.simplifiedId(), chunkDownload.getChunk().file()));
                             }
                         }
                         chunkDownloads.clear();
@@ -379,7 +392,7 @@ public final class Download {
                 downloadInfo.rangeInfo().rangeSupportable());
         persistenceAdapter.saveDownloadInfo(request, downloadInfo, chunks);
         for (Chunk chunk : chunks) {
-            ChunkDownload chunkDownload = new ChunkDownload(request, chunk, null, downloadAPI, persistenceAdapter);
+            ChunkDownload chunkDownload = new ChunkDownload(request, chunk, null, downloadAPI, persistenceAdapter, logger);
             chunkDownload.attach(Download.this);
             chunkDownloads.add(chunkDownload);
         }
@@ -434,7 +447,7 @@ public final class Download {
             }
             for (File part : parts) {
                 if (!part.delete()) {
-
+                    logger.warning(Utils.formatString("Can not delete download(%s)'s chunk file(%s) when merging.", request.simplifiedId(), part.getName()));
                 }
             }
             notifyDownloadStatus(new DownloadStatus(DownloadStatus.COMPLETE));

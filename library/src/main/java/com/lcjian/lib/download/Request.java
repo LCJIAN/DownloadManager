@@ -21,6 +21,7 @@ public final class Request implements Serializable {
     private final String fileName;
     private final Map<String, String> headers;
     private final int priority;
+    private final String simplifiedId;
     /**
      * Use for customization. You can use JSON string or some else to save more info.
      */
@@ -34,6 +35,7 @@ public final class Request implements Serializable {
         this.headers = builder.headers;
         this.priority = builder.priority;
         this.extra = builder.extra;
+        this.simplifiedId = id.length() - 10 < 0 ? id : id.substring(id.length() - 10);
     }
 
     public String id() {
@@ -62,6 +64,10 @@ public final class Request implements Serializable {
 
     public String extra() {
         return extra;
+    }
+
+    public String simplifiedId() {
+        return simplifiedId;
     }
 
     public String header(String name) {

@@ -1,6 +1,19 @@
 package com.lcjian.lib.download;
 
+import java.text.NumberFormat;
+import java.util.Formatter;
+import java.util.Locale;
+
 public class Utils {
+
+    private static final String[] DICTIONARY = {"bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
+    private static final StringBuilder STRING_BUILDER;
+    private static final Formatter FORMATTER;
+
+    static {
+        STRING_BUILDER = new StringBuilder();
+        FORMATTER = new Formatter(STRING_BUILDER, Locale.getDefault());
+    }
 
     /**
      * Returns true if the string is null or 0-length.
@@ -29,21 +42,29 @@ public class Utils {
     }
 
     /**
-     * Method to format bytes in human readable format
+     * Method to formatString bytes in human readable formatString
      *
      * @param bytes  - the value in bytes
      * @param digits - number of decimals to be displayed
-     * @return human readable format string
+     * @return human readable formatString string
      */
-    public static String format(double bytes, int digits) {
-        String[] dictionary = {"bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
-        int index = 0;
-        for (index = 0; index < dictionary.length; index++) {
+    public static String formatBytes(double bytes, int digits) {
+        int index;
+        for (index = 0; index < DICTIONARY.length; index++) {
             if (bytes < 1024) {
                 break;
             }
             bytes = bytes / 1024;
         }
-        return String.format("%." + digits + "f", bytes) + " " + dictionary[index];
+        return formatString("%." + digits + "f", bytes) + " " + DICTIONARY[index];
+    }
+
+    public static String formatString(String format, Object... args) {
+        STRING_BUILDER.setLength(0);
+        return FORMATTER.format(format, args).toString();
+    }
+
+    public static String formatPercent(double number) {
+        return NumberFormat.getPercentInstance().format(number);
     }
 }

@@ -19,7 +19,7 @@ public class ChunkDownloadStatus implements Serializable {
 
     ChunkDownloadStatus(int status) {
         if (status == ERROR) {
-            throw new IllegalArgumentException("should call ChunkDownloadStatus(Throwable throwable)");
+            throw new IllegalArgumentException("You should call ChunkDownloadStatus(Throwable throwable).");
         }
         this.status = status;
     }

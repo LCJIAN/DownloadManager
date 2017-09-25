@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Logger;
 
 public final class ChunkDownload {
 
@@ -18,16 +19,19 @@ public final class ChunkDownload {
     private final PersistenceAdapter persistenceAdapter;
     private final CopyOnWriteArrayList<ChunkDownloadListener> listeners;
     private final ChunkDownloader chunkDownloader;
+    private final Logger logger;
     private Download download;
     private ChunkDownloadStatus chunkDownloadStatus;
     private long downloadedBytes;
+    private long length;
 
     ChunkDownload(Request request, Chunk chunk, ChunkDownloadStatus chunkDownloadStatus, DownloadAPI downloadAPI,
-                  PersistenceAdapter persistenceAdapter) {
+                  PersistenceAdapter persistenceAdapter, Logger logger) {
         this.request = request;
         this.chunk = chunk;
         this.downloadAPI = downloadAPI;
         this.persistenceAdapter = persistenceAdapter;
+        this.logger = logger;
         this.chunkDownloadStatus = chunkDownloadStatus;
         this.listeners = new CopyOnWriteArrayList<>();
         this.chunkDownloader = new ChunkDownloader();
@@ -38,6 +42,7 @@ public final class ChunkDownload {
                 || status == ChunkDownloadStatus.DOWNLOADING) {
             this.chunkDownloadStatus = new ChunkDownloadStatus(ChunkDownloadStatus.IDLE);
         }
+        this.length = chunk.end() - chunk.start();
     }
 
     void attach(Download download) {
@@ -78,6 +83,13 @@ public final class ChunkDownload {
             chunkDownloadListener.onProgress(this, downloadedBytes);
         }
         download.notifyDownloadProgress(delta);
+        if (length > 0) {
+            logger.finest(Utils.formatString("%s %s download of download(%s)'s chunk download(%s)",
+                    Utils.formatBytes(downloadedBytes, 2), Utils.formatPercent(downloadedBytes / (double) length), request.simplifiedId(), chunk.file()));
+        } else {
+            logger.finest(Utils.formatString("%s download of download(%s)'s chunk download(%s)",
+                    Utils.formatBytes(downloadedBytes, 2), request.simplifiedId(), chunk.file()));
+        }
     }
 
     void notifyDownloadStatus(final ChunkDownloadStatus status) {
@@ -91,6 +103,8 @@ public final class ChunkDownload {
                     chunkDownloadListener.onDownloadStatusChanged(ChunkDownload.this, chunkDownloadStatus);
                 }
                 download.notifyDownloadStatus(chunkDownloadStatus);
+                logger.finer(Utils.formatString("Download(%s)'s chunk download(%s)'s status:%d",
+                        request.simplifiedId(), chunk.file(), chunkDownloadStatus.getStatus()));
             }
         });
     }
