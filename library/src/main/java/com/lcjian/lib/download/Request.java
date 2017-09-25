@@ -20,6 +20,7 @@ public final class Request implements Serializable {
     private final String destination;
     private final String fileName;
     private final Map<String, String> headers;
+    private final int priority;
     /**
      * Use for customization. You can use JSON string or some else to save more info.
      */
@@ -31,6 +32,7 @@ public final class Request implements Serializable {
         this.destination = builder.destination;
         this.fileName = builder.fileName;
         this.headers = builder.headers;
+        this.priority = builder.priority;
         this.extra = builder.extra;
     }
 
@@ -52,6 +54,14 @@ public final class Request implements Serializable {
 
     public Map<String, String> headers() {
         return headers == null ? null : Collections.unmodifiableMap(headers);
+    }
+
+    public int priority() {
+        return priority;
+    }
+
+    public String extra() {
+        return extra;
     }
 
     public String header(String name) {
@@ -83,6 +93,7 @@ public final class Request implements Serializable {
         private String destination;
         private String fileName;
         private Map<String, String> headers;
+        private int priority;
         private String extra;
 
         public Builder() {
@@ -93,6 +104,7 @@ public final class Request implements Serializable {
             this.destination = request.destination;
             this.fileName = request.fileName;
             this.headers = request.headers;
+            this.priority = request.priority;
             this.extra = request.extra;
         }
 
@@ -116,6 +128,11 @@ public final class Request implements Serializable {
 
         public Builder fileName(String fileName) {
             this.fileName = fileName;
+            return this;
+        }
+
+        public Builder priority(int priority) {
+            this.priority = priority;
             return this;
         }
 

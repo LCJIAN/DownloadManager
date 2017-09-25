@@ -158,7 +158,7 @@ public final class ChunkDownload {
                 if (rangeSupportable) {
                     if (serverFileChanged) {
                         if (file.delete()) {
-                            notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("can not delete old chunk file")));
+                            notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("Can not delete old chunk file")));
                             return;
                         }
                     } else {
@@ -175,12 +175,12 @@ public final class ChunkDownload {
                     File folder = new File(file.getAbsolutePath().substring(0, file.getAbsolutePath().lastIndexOf(File.separator)));
                     if (!folder.exists()) {
                         if (folder.mkdirs()) {
-                            notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("can not mkdirs")));
+                            notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("Can not mkdirs")));
                             return;
                         }
                     }
                     if (!file.createNewFile()) {
-                        notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("can not create file")));
+                        notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("Can not create file")));
                         return;
                     }
                 } catch (IOException e) {

@@ -95,7 +95,7 @@ public class DownloadInfo implements Serializable {
         private final String fileName;
         private final String mimeType;
         private final String lastModified;
-        private final Long contentLength;
+        private final long contentLength;
 
         private InitInfo(Builder builder) {
             this.fileName = builder.fileName;
@@ -108,11 +108,15 @@ public class DownloadInfo implements Serializable {
             return fileName;
         }
 
+        public String mimeType() {
+            return mimeType;
+        }
+
         public String lastModified() {
             return lastModified;
         }
 
-        public Long contentLength() {
+        public long contentLength() {
             return contentLength;
         }
 
@@ -125,7 +129,7 @@ public class DownloadInfo implements Serializable {
             private String fileName;
             private String mimeType;
             private String lastModified;
-            private Long contentLength;
+            private long contentLength;
 
             public Builder() {
             }
@@ -152,7 +156,7 @@ public class DownloadInfo implements Serializable {
                 return this;
             }
 
-            public Builder contentLength(Long contentLength) {
+            public Builder contentLength(long contentLength) {
                 this.contentLength = contentLength;
                 return this;
             }
@@ -171,19 +175,19 @@ public class DownloadInfo implements Serializable {
          */
         private static final long serialVersionUID = 1L;
 
-        private final Boolean rangeSupportable;
-        private final Boolean chunked;
+        private final boolean rangeSupportable;
+        private final boolean chunked;
 
         private RangeInfo(Builder builder) {
             this.rangeSupportable = builder.rangeSupportable;
             this.chunked = builder.chunked;
         }
 
-        public Boolean rangeSupportable() {
+        public boolean rangeSupportable() {
             return rangeSupportable;
         }
 
-        public Boolean chunked() {
+        public boolean chunked() {
             return chunked;
         }
 
@@ -193,8 +197,8 @@ public class DownloadInfo implements Serializable {
 
         public static class Builder {
 
-            private Boolean rangeSupportable;
-            private Boolean chunked;
+            private boolean rangeSupportable;
+            private boolean chunked;
 
             public Builder() {
             }
@@ -204,21 +208,17 @@ public class DownloadInfo implements Serializable {
                 this.chunked = rangeInfo.chunked;
             }
 
-            public Builder rangeSupportable(Boolean rangeSupportable) {
+            public Builder rangeSupportable(boolean rangeSupportable) {
                 this.rangeSupportable = rangeSupportable;
                 return this;
             }
 
-            public Builder chunked(Boolean chunked) {
+            public Builder chunked(boolean chunked) {
                 this.chunked = chunked;
                 return this;
             }
 
             public RangeInfo build() {
-                if (rangeSupportable == null)
-                    throw new NullPointerException("rangeSupportable == null");
-                if (chunked == null)
-                    throw new NullPointerException("chunked == null");
                 return new RangeInfo(this);
             }
         }

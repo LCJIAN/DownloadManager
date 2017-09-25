@@ -2,6 +2,7 @@ package com.lcjian.lib.download;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-// TODO -1. file conflict check,disk space check 1.priority 3.download statistics 4.okhttp downloader 5.sqlite persistence 6. rxjava support
+// TODO 1.download statistics 2.okhttp downloader 3.sqlite persistence 4. rxjava support
 public class DownloadManager {
 
     private final String defaultDestination;
@@ -180,6 +181,19 @@ public class DownloadManager {
     public void pauseAll() {
         for (Download download : downloads) {
             download.pauseAsync();
+        }
+    }
+
+    public void priorityResumeAll() {
+        List<Download> downloadsTemp = new ArrayList<>(downloads);
+        Collections.sort(downloadsTemp, new Comparator<Download>() {
+            @Override
+            public int compare(Download o1, Download o2) {
+                return o1.getRequest().priority() - o2.getRequest().priority();
+            }
+        });
+        for (Download download : downloadsTemp) {
+            download.resumeAsync();
         }
     }
 

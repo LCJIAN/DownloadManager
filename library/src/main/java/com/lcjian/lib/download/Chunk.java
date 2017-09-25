@@ -65,14 +65,14 @@ public final class Chunk implements Serializable {
 
         public Builder file(String file) {
             if (Utils.isEmpty(file))
-                throw new NullPointerException("empty file");
+                throw new NullPointerException("Chunk file path is empty");
             this.file = file;
             return this;
         }
 
         public Chunk build() {
             if (Utils.isEmpty(file))
-                throw new NullPointerException("empty file");
+                throw new NullPointerException("Chunk file path is empty");
             return new Chunk(this);
         }
     }

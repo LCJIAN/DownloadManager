@@ -292,7 +292,7 @@ public final class Download {
             listeners.clear();
             if (deleteFlag.get()) {
                 File downloadFile = getDownloadFile();
-                if (downloadFile != null && getDownloadFile().exists()) {
+                if (downloadFile != null && downloadFile.exists()) {
                     if (!downloadFile.delete()) {
 
                     }
@@ -344,7 +344,7 @@ public final class Download {
                         }
                         chunkDownloads.clear();
                     }
-                    splitDownload();
+                    prepareDownload();
                 }
             } else {
                 downloadInfo = new DownloadInfo.Builder()
@@ -354,7 +354,7 @@ public final class Download {
                         .serverFileChanged(false)
                         .build();
                 // split
-                splitDownload();
+                prepareDownload();
             }
 
             if (pauseFlag.get()) {
@@ -373,9 +373,15 @@ public final class Download {
         }
     }
 
-    private void splitDownload() {
+    private void prepareDownload() {
         File downloadFile = getDownloadFile();
         assert downloadFile != null;
+        if (downloadFile.exists()) {
+            throw new RuntimeException("File conflict");
+        }
+        if (downloadFile.getUsableSpace() < downloadInfo.initInfo().contentLength()) {
+            throw new RuntimeException("Insufficient disk space");
+        }
         List<Chunk> chunks = splitter.split(
                 downloadFile.getAbsolutePath(),
                 downloadInfo.initInfo().contentLength(),
