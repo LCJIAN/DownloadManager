@@ -42,11 +42,11 @@ public class Utils {
     }
 
     /**
-     * Method to formatString bytes in human readable formatString
+     * Method to format bytes in human readable format
      *
      * @param bytes  - the value in bytes
      * @param digits - number of decimals to be displayed
-     * @return human readable formatString string
+     * @return human readable format string
      */
     public static String formatBytes(double bytes, int digits) {
         int index;
