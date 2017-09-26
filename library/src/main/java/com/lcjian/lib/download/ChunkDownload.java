@@ -23,7 +23,6 @@ public final class ChunkDownload {
     private Download download;
     private ChunkDownloadStatus chunkDownloadStatus;
     private long downloadedBytes;
-    private long length;
 
     ChunkDownload(Request request, Chunk chunk, ChunkDownloadStatus chunkDownloadStatus, DownloadAPI downloadAPI,
                   PersistenceAdapter persistenceAdapter, Logger logger) {
@@ -42,7 +41,6 @@ public final class ChunkDownload {
                 || status == ChunkDownloadStatus.DOWNLOADING) {
             this.chunkDownloadStatus = new ChunkDownloadStatus(ChunkDownloadStatus.IDLE);
         }
-        this.length = chunk.end() - chunk.start();
     }
 
     void attach(Download download) {
@@ -83,13 +81,6 @@ public final class ChunkDownload {
             chunkDownloadListener.onProgress(this, downloadedBytes);
         }
         download.notifyDownloadProgress(delta);
-        if (length > 0) {
-            logger.finest(Utils.formatString("%s %s download of download(%s)'s chunk download(%s)",
-                    Utils.formatBytes(downloadedBytes, 2), Utils.formatPercent(downloadedBytes / (double) length), request.simplifiedId(), chunk.file()));
-        } else {
-            logger.finest(Utils.formatString("%s download of download(%s)'s chunk download(%s)",
-                    Utils.formatBytes(downloadedBytes, 2), request.simplifiedId(), chunk.file()));
-        }
     }
 
     void notifyDownloadStatus(final ChunkDownloadStatus status) {
@@ -103,7 +94,7 @@ public final class ChunkDownload {
                     chunkDownloadListener.onDownloadStatusChanged(ChunkDownload.this, chunkDownloadStatus);
                 }
                 download.notifyDownloadStatus(chunkDownloadStatus);
-                logger.finer(Utils.formatString("Download(%s)'s chunk download(%s)'s status:%d",
+                logger.finest(Utils.formatString("Download(%s)'s chunk download(%s)'s status is changed, status:%d",
                         request.simplifiedId(), chunk.file(), chunkDownloadStatus.getStatus()));
             }
         });

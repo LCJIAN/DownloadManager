@@ -13,6 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 // TODO 1.download statistics 2.okhttp downloader 3.sqlite persistence 4. rxjava support
@@ -319,6 +320,7 @@ public class DownloadManager {
             }
             if (logger == null) {
                 logger = Logger.getLogger("DownloadManager");
+                logger.setLevel(Level.ALL);
             }
             return new DownloadManager(this);
         }

@@ -196,14 +196,6 @@ public final class Download {
         for (DownloadListener downloadListener : listeners) {
             downloadListener.onProgress(this, bytes);
         }
-        long length = downloadInfo.initInfo().contentLength();
-        if (length > 0) {
-            logger.fine(Utils.formatString("%s %s download of download(%s)",
-                    Utils.formatBytes(bytes, 2), Utils.formatPercent(bytes / (double) length), request.simplifiedId()));
-        } else {
-            logger.fine(Utils.formatString("%s download of download(%s)",
-                    Utils.formatBytes(bytes, 2), request.simplifiedId()));
-        }
     }
 
     private void notifyDownloadStatus(DownloadStatus status) {
@@ -235,7 +227,7 @@ public final class Download {
             for (DownloadListener downloadListener : listeners) {
                 downloadListener.onDownloadStatusChanged(Download.this, downloadStatus);
             }
-            logger.info(Utils.formatString("Download(%s)'s status:%d", request.simplifiedId(), downloadStatus.getStatus()));
+            logger.fine(Utils.formatString("Download(%s)'s status is changed, status:%d", request.simplifiedId(), downloadStatus.getStatus()));
         }
     }
 

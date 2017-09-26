@@ -21,7 +21,12 @@ public class Test {
 
                     @Override
                     public void onProgress(Download download, long downloadedBytes) {
-//                        System.out.println(download.getRequest().fileName() + ":" + Utils.formatBytes(downloadedBytes, 2));
+                        System.out.println(Utils.formatString("Download(%s) : %s, %s",
+                                download.getRequest().simplifiedId(),
+                                Utils.formatBytes(downloadedBytes, 2),
+                                download.getDownloadInfo().initInfo().contentLength() > 0
+                                        ? Utils.formatPercent(downloadedBytes / (double) download.getDownloadInfo().initInfo().contentLength())
+                                        : "unknown"));
                     }
 
                     @Override
@@ -58,7 +63,7 @@ public class Test {
                             default:
                                 break;
                         }
-                        System.out.println(download.getRequest().url() + ":" + statusStr);
+                        System.out.println(Utils.formatString("Download(%s):%s", download.getRequest().simplifiedId(), statusStr));
                         if (downloadStatus.getStatus() == DownloadStatus.ERROR) {
                             downloadStatus.getThrowable().printStackTrace();
                         }/* else if (downloadStatus.getStatus() == DownloadStatus.MERGE_END) {
