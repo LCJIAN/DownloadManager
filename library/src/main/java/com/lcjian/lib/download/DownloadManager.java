@@ -170,37 +170,62 @@ public class DownloadManager {
         });
     }
 
-    public void resume(Download download) {
-        download.resumeAsync();
+    public void resume(final Request request) {
+        actionThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                getDownload(request).resumeAsync();
+            }
+        });
     }
 
-    public void pause(Download download) {
-        download.pauseAsync();
+    public void pause(final Request request) {
+        actionThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                getDownload(request).pauseAsync();
+            }
+        });
     }
 
     public void resumeAll() {
-        for (Download download : downloads) {
-            download.resumeAsync();
-        }
+        actionThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                for (Download download : downloads) {
+                    download.resumeAsync();
+                }
+            }
+        });
     }
 
     public void pauseAll() {
-        for (Download download : downloads) {
-            download.pauseAsync();
-        }
+        actionThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                for (Download download : downloads) {
+                    download.pauseAsync();
+                }
+            }
+        });
     }
 
     public void priorityResumeAll() {
-        List<Download> downloadsTemp = new ArrayList<>(downloads);
-        Collections.sort(downloadsTemp, new Comparator<Download>() {
+        actionThreadPool.execute(new Runnable() {
             @Override
-            public int compare(Download o1, Download o2) {
-                return o1.getRequest().priority() - o2.getRequest().priority();
+            public void run() {
+                List<Download> downloadsTemp = new ArrayList<>(downloads);
+                Collections.sort(downloadsTemp, new Comparator<Download>() {
+                    @Override
+                    public int compare(Download o1, Download o2) {
+                        return o1.getRequest().priority() - o2.getRequest().priority();
+                    }
+                });
+                for (Download download : downloadsTemp) {
+                    download.resumeAsync();
+                }
             }
         });
-        for (Download download : downloadsTemp) {
-            download.resumeAsync();
-        }
     }
 
     public void delete(final Download download, final boolean deleteFile) {

@@ -5,55 +5,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class HttpURLConnectionDownloadAPI implements DownloadAPI {
-
-    /**
-     * Regex used to parse content-disposition headers
-     */
-    private static final Pattern CONTENT_DISPOSITION_PATTERN = Pattern
-            .compile("attachment;\\s*filename\\s*=\\s*\"([^\"]*)\"");
-
-    /*
-     * Parse the Content-Disposition HTTP Header. The format of the header is
-     * defined here: http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html This
-     * header provides a filename for content that is going to be downloaded to
-     * the file system. We only support the attachment type.
-     */
-    private static String fileName(String contentDisposition) {
-        try {
-            Matcher m = CONTENT_DISPOSITION_PATTERN.matcher(contentDisposition);
-            if (m.find()) {
-                return m.group(1);
-            }
-        } catch (IllegalStateException ex) {
-            // This function is defined as returning null when it can't parse
-            // the header
-        }
-        return null;
-    }
-
-    private static String fileName(String url, String contentDisposition) {
-        String fileName = "";
-        if (!Utils.isEmpty(contentDisposition)) {
-            fileName = fileName(contentDisposition);
-        }
-        if (Utils.isEmpty(fileName)) {
-            fileName = url.substring(url.lastIndexOf('/') + 1);
-        }
-        if (fileName.startsWith("\"")) {
-            fileName = fileName.substring(1);
-        }
-        if (fileName.endsWith("\"")) {
-            fileName = fileName.substring(0, fileName.length() - 1);
-        }
-        if (Utils.isEmpty(fileName)) {
-            fileName = String.valueOf(System.currentTimeMillis());
-        }
-        return fileName;
-    }
 
     private static HttpURLConnection buildConnection(String url, Map<String, String> headers, String method) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
@@ -69,6 +22,26 @@ public class HttpURLConnectionDownloadAPI implements DownloadAPI {
 
     private static boolean isSuccessful(int code) {
         return code >= 200 && code < 300;
+    }
+
+    protected String fileName(String url, String contentDisposition) {
+        String fileName = "";
+        if (!Utils.isEmpty(contentDisposition)) {
+            fileName = Utils.contentDispositionFileName(contentDisposition);
+        }
+        if (Utils.isEmpty(fileName)) {
+            fileName = url.substring(url.lastIndexOf('/') + 1);
+        }
+        if (fileName.startsWith("\"")) {
+            fileName = fileName.substring(1);
+        }
+        if (fileName.endsWith("\"")) {
+            fileName = fileName.substring(0, fileName.length() - 1);
+        }
+        if (Utils.isEmpty(fileName) || !Utils.isValidFileName(fileName)) {
+            fileName = String.valueOf(System.currentTimeMillis());
+        }
+        return fileName;
     }
 
     @Override

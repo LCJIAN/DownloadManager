@@ -97,5 +97,6 @@ public class Test {
         downloadManager.enqueue(new Request.Builder().url("https://images.offensive-security.com/virtual-images/kali-linux-2017.2-vbox-amd64.ova").build());
         downloadManager.enqueue(new Request.Builder().url("http://imtt.dd.qq.com/16891/D5C206B2E152D565B05E086800B7DC99.apk").build());
         downloadManager.enqueue(new Request.Builder().url("https://file.zhen22.com/app_dev/android/assets/4101/map/house_filter.json").build());
+        downloadManager.enqueue(new Request.Builder().url("http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx?0.04400023248109086").build());
     }
 }

@@ -295,7 +295,8 @@ public final class Download {
                 }
                 if (chunkDownloads != null && !chunkDownloads.isEmpty()) {
                     for (ChunkDownload chunkDownload : chunkDownloads) {
-                        if (!new File(chunkDownload.getChunk().file()).delete()) {
+                        File chunkFile = new File(chunkDownload.getChunk().file());
+                        if (chunkFile.exists() && !chunkFile.delete()) {
                             logger.warning(Utils.formatString("Can not delete download(%s)'s chunk file(%s) when wind up", request.simplifiedId(), chunkDownload.getChunk().file()));
                         }
                     }
@@ -334,7 +335,8 @@ public final class Download {
                     // remove all chunks and re-split
                     if (chunkDownloads != null && !chunkDownloads.isEmpty()) {
                         for (ChunkDownload chunkDownload : chunkDownloads) {
-                            if (!new File(chunkDownload.getChunk().file()).delete()) {
+                            File chunkFile = new File(chunkDownload.getChunk().file());
+                            if (chunkFile.exists() && !chunkFile.delete()) {
                                 logger.warning(Utils.formatString("Can not delete download(%s)'s chunk file(%s) when re-split.", request.simplifiedId(), chunkDownload.getChunk().file()));
                             }
                         }

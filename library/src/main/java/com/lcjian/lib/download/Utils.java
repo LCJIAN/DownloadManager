@@ -3,16 +3,49 @@ package com.lcjian.lib.download;
 import java.text.NumberFormat;
 import java.util.Formatter;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Utils {
 
     private static final String[] DICTIONARY = {"bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
     private static final StringBuilder STRING_BUILDER;
     private static final Formatter FORMATTER;
+    /**
+     * Regex used to parse content-disposition headers
+     */
+    private static final Pattern CONTENT_DISPOSITION_PATTERN = Pattern
+            .compile("attachment;\\s*filename\\s*=\\s*\"([^\"]*)\"");
 
     static {
         STRING_BUILDER = new StringBuilder();
         FORMATTER = new Formatter(STRING_BUILDER, Locale.getDefault());
+    }
+
+    /*
+     * Parse the Content-Disposition HTTP Header. The format of the header is
+     * defined here: http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html This
+     * header provides a filename for content that is going to be downloaded to
+     * the file system. We only support the attachment type.
+     */
+    public static String contentDispositionFileName(String contentDisposition) {
+        try {
+            Matcher m = CONTENT_DISPOSITION_PATTERN.matcher(contentDisposition);
+            if (m.find()) {
+                return m.group(1);
+            }
+        } catch (IllegalStateException ex) {
+            // This function is defined as returning null when it can't parse
+            // the header
+        }
+        return null;
+    }
+
+    public static boolean isValidFileName(String fileName) {
+        if (fileName == null || fileName.length() > 255)
+            return false;
+        else
+            return fileName.matches("[^\\s\\\\/:\\*\\?\\\"<>\\|](\\x20|[^\\s\\\\/:\\*\\?\\\"<>\\|])*[^\\s\\\\/:\\*\\?\\\"<>\\|\\.]$");
     }
 
     /**
