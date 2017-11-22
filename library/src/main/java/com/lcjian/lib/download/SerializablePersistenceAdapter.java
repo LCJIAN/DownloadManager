@@ -1,8 +1,9 @@
 package com.lcjian.lib.download;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -42,14 +43,10 @@ public class SerializablePersistenceAdapter implements PersistenceAdapter {
     private static Object deserialize(String filePath) {
         ObjectInputStream in = null;
         try {
-            in = new ObjectInputStream(new FileInputStream(filePath));
+            in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(filePath)));
             return in.readObject();
-        } catch (FileNotFoundException e) {
+        } catch (ClassNotFoundException | IOException e) {
             throw new RuntimeException(e);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            return null;
         } finally {
             if (in != null) {
                 try {
@@ -64,10 +61,8 @@ public class SerializablePersistenceAdapter implements PersistenceAdapter {
     private static void serialize(String filePath, Object obj) {
         ObjectOutputStream out = null;
         try {
-            out = new ObjectOutputStream(new FileOutputStream(filePath));
+            out = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(filePath)));
             out.writeObject(obj);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
@@ -92,9 +87,6 @@ public class SerializablePersistenceAdapter implements PersistenceAdapter {
     public void deleteRequest(Request request) {
         synchronized (this) {
             List<DownloadRecord> downloadRecords = getData();
-            if (downloadRecords == null) {
-                downloadRecords = new ArrayList<>();
-            }
             DownloadRecord item = null;
             for (DownloadRecord downloadRecord : downloadRecords) {
                 if (Utils.equals(request.id(), downloadRecord.getRequest().id())) {
@@ -113,9 +105,6 @@ public class SerializablePersistenceAdapter implements PersistenceAdapter {
     public void saveRequest(Request request) {
         synchronized (this) {
             List<DownloadRecord> downloadRecords = getData();
-            if (downloadRecords == null) {
-                downloadRecords = new ArrayList<>();
-            }
             for (DownloadRecord downloadRecord : downloadRecords) {
                 if (Utils.equals(request.id(), downloadRecord.getRequest().id())) {
                     return;
@@ -180,6 +169,10 @@ public class SerializablePersistenceAdapter implements PersistenceAdapter {
 
     @SuppressWarnings("unchecked")
     private List<DownloadRecord> getData() {
-        return (List<DownloadRecord>) deserialize(dataFile);
+        try {
+            return (List<DownloadRecord>) deserialize(dataFile);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 }

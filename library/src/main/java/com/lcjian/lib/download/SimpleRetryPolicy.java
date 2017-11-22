@@ -1,5 +1,7 @@
 package com.lcjian.lib.download;
 
+import com.lcjian.lib.download.exception.FileExistsException;
+
 public final class SimpleRetryPolicy implements RetryPolicy {
 
     private final int retryCount;
@@ -13,6 +15,9 @@ public final class SimpleRetryPolicy implements RetryPolicy {
 
     @Override
     public boolean shouldRetry(Download download, Throwable throwable) {
+        if (throwable instanceof FileExistsException) {
+            return false;
+        }
         boolean result = count++ < retryCount;
         if (!result) {
             count = 0;

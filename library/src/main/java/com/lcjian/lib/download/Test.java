@@ -1,7 +1,5 @@
 package com.lcjian.lib.download;
 
-import java.util.List;
-
 public class Test {
 
     public static void main(String[] args) throws Exception {
@@ -17,7 +15,7 @@ public class Test {
 
             @Override
             public void onDownloadCreate(Download download) {
-                download.addDownloadListener(new DownloadListener() {
+                download.addDownloadListener(new DownloadListener.SimpleDownloadListener() {
 
                     @Override
                     public void onProgress(Download download, long downloadedBytes) {
@@ -70,23 +68,6 @@ public class Test {
                             downloadManager.shutdown();
                         }*/
                     }
-
-                    @Override
-                    public void onChunkDownloadsCreate(Download download, List<ChunkDownload> chunkDownloads) {
-
-                    }
-
-                    @Override
-                    public void onRetry(Download download, Throwable throwable) {
-
-                    }
-
-                    @Override
-                    public void onChunkDownloadsDestroy(Download download, List<ChunkDownload> chunkDownloads) {
-
-                    }
-
-
                 });
             }
         });
@@ -98,5 +79,7 @@ public class Test {
         downloadManager.enqueue(new Request.Builder().url("http://imtt.dd.qq.com/16891/D5C206B2E152D565B05E086800B7DC99.apk").build());
         downloadManager.enqueue(new Request.Builder().url("https://file.zhen22.com/app_dev/android/assets/4101/map/house_filter.json").build());
         downloadManager.enqueue(new Request.Builder().url("http://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx?0.04400023248109086").build());
+        downloadManager.enqueue(new Request.Builder().url("http://ojiastoreimage.bs2dl.huanjuyun.com/1280x720/1495005435018_len70518.jpg").build());
+        downloadManager.enqueue(new Request.Builder().url("http://img4.dwstatic.com/www/1705/358960629473/1495005760872.jpg").build());
     }
 }

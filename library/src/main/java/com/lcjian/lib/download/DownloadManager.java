@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -16,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-// TODO 1.download statistics 2.okhttp downloader 3.sqlite persistence 4. rxjava support
+// TODO 1.pause pending ...task 2.okhttp downloader 3.sqlite persistence 4. rxjava support
 public class DownloadManager {
 
     private final String defaultDestination;
@@ -30,6 +29,7 @@ public class DownloadManager {
     private final int maxDownloadCount;
     private final Semaphore semaphore;
     private final Logger logger;
+    private final DownloadMonitor downloadMonitor;
 
     private final List<Request> requests;
     private final List<Download> downloads;
@@ -41,7 +41,9 @@ public class DownloadManager {
         requestDownloadMap = new HashMap<>();
         listeners = new CopyOnWriteArrayList<>();
 
-        actionThreadPool = Executors.newSingleThreadExecutor();
+        ThreadPoolExecutor temp = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+        temp.allowCoreThreadTimeOut(true);
+        actionThreadPool = temp;
 
         defaultDestination = builder.defaultDestination;
         chunkDownloadThreadPool = builder.chunkDownloadThreadPool;
@@ -52,6 +54,7 @@ public class DownloadManager {
         maxDownloadCount = builder.maxDownloadCount;
         semaphore = new Semaphore(maxDownloadCount, true);
         logger = builder.logger;
+        downloadMonitor = new DownloadMonitor(this);
         init();
     }
 
@@ -60,48 +63,42 @@ public class DownloadManager {
             @Override
             public void run() {
                 List<DownloadRecord> downloadRecords = persistenceAdapter.getDownloadRecords();
-                if (downloadRecords == null || downloadRecords.isEmpty()) {
-                    return;
-                }
-                for (DownloadRecord downloadRecord : downloadRecords) {
-                    Request request = downloadRecord.getRequest();
-                    DownloadStatus downloadStatus = downloadRecord.getDownloadStatus();
-                    DownloadInfo downloadInfo = downloadRecord.getDownloadInfo();
-                    List<DownloadRecord.ChunkRecord> chunkRecords = downloadRecord.getChunkRecords();
+                if (downloadRecords != null && !downloadRecords.isEmpty()) {
+                    for (DownloadRecord downloadRecord : downloadRecords) {
+                        Request request = downloadRecord.getRequest();
+                        DownloadStatus downloadStatus = downloadRecord.getDownloadStatus();
+                        DownloadInfo downloadInfo = downloadRecord.getDownloadInfo();
+                        List<DownloadRecord.ChunkRecord> chunkRecords = downloadRecord.getChunkRecords();
 
-                    List<ChunkDownload> chunkDownloads = new ArrayList<>();
-                    if (chunkRecords != null) {
-                        for (DownloadRecord.ChunkRecord chunkRecord : chunkRecords) {
-                            chunkDownloads.add(new ChunkDownload(request, chunkRecord.getChunk(),
-                                    chunkRecord.getChunkDownloadStatus(), downloadAPI, persistenceAdapter, logger));
+                        List<ChunkDownload> chunkDownloads = new ArrayList<>();
+                        if (chunkRecords != null) {
+                            for (DownloadRecord.ChunkRecord chunkRecord : chunkRecords) {
+                                chunkDownloads.add(new ChunkDownload(request, chunkRecord.getChunk(),
+                                        chunkRecord.getChunkDownloadStatus(), downloadAPI, persistenceAdapter, logger));
+                            }
                         }
-                    }
 
-                    Download download = new Download(
-                            request,
-                            downloadStatus,
-                            downloadInfo,
-                            chunkDownloads,
-                            defaultDestination,
-                            splitter,
-                            downloadAPI,
-                            retryPolicyFactory.createPolicy(),
-                            persistenceAdapter,
-                            chunkDownloadThreadPool,
-                            semaphore,
-                            logger);
-                    requests.add(request);
-                    downloads.add(download);
-                    requestDownloadMap.put(request, download);
-                    if (listeners != null && !listeners.isEmpty()) {
-                        for (Listener listener : listeners) {
-                            listener.onDownloadCreate(download);
+                        Download download = new Download(
+                                request,
+                                downloadStatus,
+                                downloadInfo,
+                                chunkDownloads,
+                                defaultDestination,
+                                splitter,
+                                downloadAPI,
+                                retryPolicyFactory.createPolicy(),
+                                persistenceAdapter,
+                                chunkDownloadThreadPool,
+                                semaphore,
+                                logger);
+                        requests.add(request);
+                        downloads.add(download);
+                        requestDownloadMap.put(request, download);
+                        if (listeners != null && !listeners.isEmpty()) {
+                            for (Listener listener : listeners) {
+                                listener.onDownloadCreate(download);
+                            }
                         }
-                    }
-                    if (downloadStatus == null
-                            || (downloadStatus.getStatus() != DownloadStatus.IDLE
-                            && downloadStatus.getStatus() != DownloadStatus.COMPLETE)) {
-                        download.resumeAsync();
                     }
                 }
             }
@@ -248,12 +245,21 @@ public class DownloadManager {
     }
 
     public void shutdown() {
-        for (Download download : downloads) {
-            download.shutdownAsync(false);
-        }
-        actionThreadPool.shutdown();
-        chunkDownloadThreadPool.shutdown();
-        listeners.clear();
+        actionThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                for (Download download : downloads) {
+                    download.shutdownAsync(false);
+                }
+                actionThreadPool.shutdown();
+                chunkDownloadThreadPool.shutdown();
+                listeners.clear();
+            }
+        });
+    }
+
+    public DownloadMonitor getDownloadMonitor() {
+        return downloadMonitor;
     }
 
     public interface Listener {
@@ -338,7 +344,7 @@ public class DownloadManager {
                 downloadAPI = new HttpURLConnectionDownloadAPI();
             }
             if (retryPolicyFactory == null) {
-                retryPolicyFactory = SimpleRetryPolicy.Factory.create(0);
+                retryPolicyFactory = SimpleRetryPolicy.Factory.create(3);
             }
             if (maxDownloadCount == 0) {
                 maxDownloadCount = 5;

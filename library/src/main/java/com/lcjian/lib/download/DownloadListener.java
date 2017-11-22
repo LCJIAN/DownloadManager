@@ -23,4 +23,31 @@ public interface DownloadListener {
 
     void onChunkDownloadsDestroy(Download download, List<ChunkDownload> chunkDownloads);
 
+    class SimpleDownloadListener implements DownloadListener {
+
+        @Override
+        public void onDownloadStatusChanged(Download download, DownloadStatus downloadStatus) {
+
+        }
+
+        @Override
+        public void onProgress(Download download, long downloadedBytes) {
+
+        }
+
+        @Override
+        public void onRetry(Download download, Throwable throwable) {
+
+        }
+
+        @Override
+        public void onChunkDownloadsCreate(Download download, List<ChunkDownload> chunkDownloads) {
+
+        }
+
+        @Override
+        public void onChunkDownloadsDestroy(Download download, List<ChunkDownload> chunkDownloads) {
+
+        }
+    }
 }

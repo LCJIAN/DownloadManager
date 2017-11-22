@@ -1,5 +1,8 @@
 package com.lcjian.lib.download;
 
+import com.lcjian.lib.download.exception.ConnectException;
+import com.lcjian.lib.download.exception.FileExistsException;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -119,6 +122,7 @@ public final class Download {
 
     void pauseAsync() {
         if (!pauseFlag.get()) {
+            // make this download pause.
             pauseFlag.getAndSet(true);
             List<Runnable> runnableList = actionThreadPool.shutdownNow();
             for (Runnable runnable : runnableList) {
@@ -138,26 +142,30 @@ public final class Download {
                 public void run() {
                     pauseFlag.getAndSet(false);
                     int st = downloadStatus.getStatus();
-                    if (retryFlag.get()
-                            || st == DownloadStatus.IDLE
-                            || st == DownloadStatus.ERROR
-                            || st == DownloadStatus.MERGE_ERROR) {
-                        if (retryFlag.get()) {
-                            retryFlag.getAndSet(false);
-                        } else {
-                            try {
-                                notifyDownloadStatus(new DownloadStatus(DownloadStatus.PENDING));
-                                semaphore.acquire();
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                                needRelease = false;
-                                notifyDownloadStatus(new DownloadStatus(DownloadStatus.IDLE));
-                                return;
-                            }
-                        }
-                        initialize();
+                    if (st == DownloadStatus.COMPLETE) {
+                        logger.warning(Utils.formatString("Download(%s) is complete.", request.simplifiedId()));
                     } else {
-                        logger.warning(Utils.formatString("Download(%s) is running.", request.simplifiedId()));
+                        if (retryFlag.get()
+                                || st == DownloadStatus.IDLE
+                                || st == DownloadStatus.ERROR
+                                || st == DownloadStatus.MERGE_ERROR) {
+                            if (retryFlag.get()) {
+                                retryFlag.getAndSet(false);
+                            } else {
+                                try {
+                                    notifyDownloadStatus(new DownloadStatus(DownloadStatus.PENDING));
+                                    semaphore.acquire();
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                    needRelease = false;
+                                    notifyDownloadStatus(new DownloadStatus(DownloadStatus.IDLE));
+                                    return;
+                                }
+                            }
+                            initialize();
+                        } else {
+                            logger.warning(Utils.formatString("Download(%s) is running.", request.simplifiedId()));
+                        }
                     }
                 }
             });
@@ -199,12 +207,21 @@ public final class Download {
     }
 
     private void notifyDownloadStatus(DownloadStatus status) {
-        int st = downloadStatus.getStatus();
-        boolean changed = st != status.getStatus();
+        int st = status.getStatus();
+        boolean changed = st != downloadStatus.getStatus();
         if (changed) {
             if ((st == DownloadStatus.ERROR || st == DownloadStatus.MERGE_ERROR)
-                    && retryPolicy.shouldRetry(Download.this, status.getThrowable())) {
+                    && retryPolicy.shouldRetry(Download.this, status.getThrowable())
+                    && !pauseFlag.get()) {
                 retryFlag.getAndSet(true);
+            }
+            if (st == DownloadStatus.IDLE
+                    || st == DownloadStatus.ERROR
+                    || st == DownloadStatus.MERGE_ERROR) {
+                // make this download resume-able again.
+                pauseFlag.getAndSet(true);
+            }
+            if (retryFlag.get()) {
                 for (DownloadListener downloadListener : listeners) {
                     downloadListener.onRetry(Download.this, status.getThrowable());
                 }
@@ -231,46 +248,51 @@ public final class Download {
         }
     }
 
-    void notifyDownloadStatus(ChunkDownloadStatus status) {
-        DownloadStatus tempDownloadStatus = null;
-        for (ChunkDownload chunkDownload : chunkDownloads) {
-            if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.DOWNLOADING) {
-                tempDownloadStatus = new DownloadStatus(DownloadStatus.DOWNLOADING);
-                break;
-            }
-        }
-        if (tempDownloadStatus == null) {
-            for (ChunkDownload chunkDownload : chunkDownloads) {
-                if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.PENDING) {
-                    tempDownloadStatus = new DownloadStatus(DownloadStatus.CHUNK_PENDING);
-                    break;
+    void updateDownloadStatusAsync() {
+        execute(new Runnable() {
+            @Override
+            public void run() {
+                DownloadStatus tempDownloadStatus = null;
+                for (ChunkDownload chunkDownload : chunkDownloads) {
+                    if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.DOWNLOADING) {
+                        tempDownloadStatus = new DownloadStatus(DownloadStatus.DOWNLOADING);
+                        break;
+                    }
+                }
+                if (tempDownloadStatus == null) {
+                    for (ChunkDownload chunkDownload : chunkDownloads) {
+                        if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.PENDING) {
+                            tempDownloadStatus = new DownloadStatus(DownloadStatus.CHUNK_PENDING);
+                            break;
+                        }
+                    }
+                }
+                if (tempDownloadStatus == null) {
+                    for (ChunkDownload chunkDownload : chunkDownloads) {
+                        if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.IDLE) {
+                            tempDownloadStatus = new DownloadStatus(DownloadStatus.IDLE);
+                            break;
+                        }
+                    }
+                }
+                if (tempDownloadStatus == null) {
+                    for (ChunkDownload chunkDownload : chunkDownloads) {
+                        if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.ERROR) {
+                            tempDownloadStatus = new DownloadStatus(chunkDownload.getChunkDownloadStatus().getThrowable());
+                            break;
+                        }
+                    }
+                }
+                if (tempDownloadStatus == null) {
+                    merge();
+                } else {
+                    notifyDownloadStatus(tempDownloadStatus);
                 }
             }
-        }
-        if (tempDownloadStatus == null) {
-            for (ChunkDownload chunkDownload : chunkDownloads) {
-                if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.IDLE) {
-                    tempDownloadStatus = new DownloadStatus(DownloadStatus.IDLE);
-                    break;
-                }
-            }
-        }
-        if (tempDownloadStatus == null) {
-            for (ChunkDownload chunkDownload : chunkDownloads) {
-                if (chunkDownload.getChunkDownloadStatus().getStatus() == ChunkDownloadStatus.ERROR) {
-                    tempDownloadStatus = new DownloadStatus(chunkDownload.getChunkDownloadStatus().getThrowable());
-                    break;
-                }
-            }
-        }
-        if (tempDownloadStatus == null) {
-            merge();
-        } else {
-            notifyDownloadStatus(tempDownloadStatus);
-        }
+        });
     }
 
-    void execute(Runnable runnable) {
+    private void execute(Runnable runnable) {
         if (actionThreadPool == null || actionThreadPool.isShutdown()) {
              /*
               * Use only a single thread to keep download status and data correct.
@@ -303,6 +325,7 @@ public final class Download {
                     chunkDownloads.clear();
                 }
             }
+            actionThreadPool = null;
             shutdown = true;
         }
     }
@@ -314,7 +337,14 @@ public final class Download {
         }
         notifyDownloadStatus(new DownloadStatus(DownloadStatus.INITIALIZING));
 
-        boolean initialized = downloadInfo != null && downloadInfo.initInfo() != null;
+        boolean initialized = true;
+        if (downloadInfo == null) {
+            initialized = false;
+        } else {
+            if (downloadInfo.initInfo() == null) {
+                initialized = false;
+            }
+        }
         try {
             if (initialized) {
                 boolean reInit = !downloadInfo.rangeInfo().rangeSupportable()
@@ -340,9 +370,10 @@ public final class Download {
                                 logger.warning(Utils.formatString("Can not delete download(%s)'s chunk file(%s) when re-split.", request.simplifiedId(), chunkDownload.getChunk().file()));
                             }
                         }
+                        downloadedBytes.getAndSet(0);
                         chunkDownloads.clear();
                     }
-                    prepareDownload();
+                    splitDownload();
                 }
             } else {
                 downloadInfo = new DownloadInfo.Builder()
@@ -352,7 +383,7 @@ public final class Download {
                         .serverFileChanged(false)
                         .build();
                 // split
-                prepareDownload();
+                splitDownload();
             }
 
             if (pauseFlag.get()) {
@@ -362,24 +393,17 @@ public final class Download {
 
             for (ChunkDownload chunkDownload : chunkDownloads) {
                 ChunkDownload.ChunkDownloader chunkDownloader = chunkDownload.getChunkDownloader();
-                chunkDownload.notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.PENDING));
+                chunkDownload.notifyChunkDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.PENDING));
                 chunkDownloadThreadPool.execute(chunkDownloader);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ConnectException | FileExistsException e) {
             notifyDownloadStatus(new DownloadStatus(e));
         }
     }
 
-    private void prepareDownload() {
+    private void splitDownload() throws FileExistsException {
         File downloadFile = getDownloadFile();
         assert downloadFile != null;
-        if (downloadFile.exists()) {
-            throw new RuntimeException("File conflict");
-        }
-//        if (downloadFile.getUsableSpace() < downloadInfo.initInfo().contentLength()) {
-//            throw new RuntimeException("Insufficient disk space");
-//        }
         List<Chunk> chunks = splitter.split(
                 downloadFile.getAbsolutePath(),
                 downloadInfo.initInfo().contentLength(),
@@ -390,6 +414,12 @@ public final class Download {
             chunkDownload.attach(Download.this);
             chunkDownloads.add(chunkDownload);
         }
+        if (downloadFile.exists()) {
+            throw new FileExistsException(downloadFile);
+        }
+//            if (downloadFile.getUsableSpace() < downloadInfo.initInfo().contentLength()) {
+//                throw new RuntimeException("Insufficient disk space");
+//            }
     }
 
     private void merge() {
@@ -402,10 +432,8 @@ public final class Download {
         File outFile = getDownloadFile();
         assert outFile != null;
         if (outFile.exists()) {
-            if (!outFile.delete()) {
-                notifyDownloadStatus(new DownloadStatus(DownloadStatus.MERGE_ERROR, new RuntimeException("can not delete file")));
-                return;
-            }
+            notifyDownloadStatus(new DownloadStatus(DownloadStatus.MERGE_ERROR, new FileExistsException(outFile)));
+            return;
         }
         FileOutputStream os = null;
         FileChannel outFileChannel = null;
@@ -419,7 +447,7 @@ public final class Download {
                     is = new FileInputStream(part);
                     inPartFileChannel = is.getChannel();
                     inPartFileChannel.transferTo(0, inPartFileChannel.size(), outFileChannel);
-                } catch (Exception e) {
+                } catch (IOException e) {
                     notifyDownloadStatus(new DownloadStatus(DownloadStatus.MERGE_ERROR, e));
                     return;
                 } finally {

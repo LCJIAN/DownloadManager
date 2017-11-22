@@ -1,10 +1,10 @@
 package com.lcjian.lib.download;
 
+import com.lcjian.lib.download.exception.ConnectException;
+
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -45,6 +45,10 @@ public final class ChunkDownload {
 
     void attach(Download download) {
         this.download = download;
+        File file = new File(chunk.file());
+        if (file.exists()) {
+            notifyDownloadProgress(file.length());
+        }
     }
 
     ChunkDownloader getChunkDownloader() {
@@ -83,74 +87,20 @@ public final class ChunkDownload {
         download.notifyDownloadProgress(delta);
     }
 
-    void notifyDownloadStatus(final ChunkDownloadStatus status) {
-        download.execute(new Runnable() {
-            @Override
-            public void run() {
-                chunkDownloadStatus = status;
-                persistenceAdapter.saveChunkDownloadStatus(request, chunk, chunkDownloadStatus);
-
-                for (ChunkDownloadListener chunkDownloadListener : listeners) {
-                    chunkDownloadListener.onDownloadStatusChanged(ChunkDownload.this, chunkDownloadStatus);
-                }
-                download.notifyDownloadStatus(chunkDownloadStatus);
-                logger.finest(Utils.formatString("Download(%s)'s chunk download(%s)'s status is changed, status:%d",
-                        request.simplifiedId(), chunk.file(), chunkDownloadStatus.getStatus()));
-            }
-        });
-    }
-
-    private static class ProgressOutputStream extends FilterOutputStream {
-
-        private static final int NOTIFICATION_THRESHOLD = 24 * 1024;
-
-        private final ProgressListener listener;
-
-        private int delta;
-
-        /**
-         * Creates an output stream filter built on top of the specified
-         * underlying output stream.
-         *
-         * @param out the underlying output stream to be assigned to
-         *            the field <tt>this.out</tt> for later use, or
-         *            <code>null</code> if this instance is to be
-         *            created without an underlying stream.
-         */
-        ProgressOutputStream(OutputStream out, ProgressListener listener) {
-            super(out);
-            this.listener = listener;
+    void notifyChunkDownloadStatus(ChunkDownloadStatus status) {
+        chunkDownloadStatus = status;
+        persistenceAdapter.saveChunkDownloadStatus(request, chunk, chunkDownloadStatus);
+        for (ChunkDownloadListener chunkDownloadListener : listeners) {
+            chunkDownloadListener.onDownloadStatusChanged(ChunkDownload.this, chunkDownloadStatus);
         }
-
-        public void write(int b) throws IOException {
-            super.write(b);
-            notifyProgress();
-        }
-
-        @Override
-        public void close() throws IOException {
-            if (delta > 0) {
-                listener.progressChanged(delta);
-                delta = 0;
-            }
-            super.close();
-        }
-
-        private void notifyProgress() {
-            delta++;
-            if (delta >= NOTIFICATION_THRESHOLD) {
-                listener.progressChanged(delta);
-                delta = 0;
-            }
-        }
-
-        interface ProgressListener {
-            void progressChanged(int delta);
-        }
+        download.updateDownloadStatusAsync();
+        logger.finest(Utils.formatString("Download(%s)'s chunk download(%s)'s status is changed, status:%d",
+                request.simplifiedId(), chunk.file(), chunkDownloadStatus.getStatus()));
     }
 
     class ChunkDownloader implements Runnable {
 
+        @SuppressWarnings("all")
         @Override
         public void run() {
             boolean rangeSupportable = download.getDownloadInfo().rangeInfo().rangeSupportable();
@@ -160,41 +110,18 @@ public final class ChunkDownload {
             long start = file.exists() ? chunk.start() + file.length() : chunk.start();
             long end = chunk.end();
             if (file.exists()) {
-                if (rangeSupportable) {
-                    if (serverFileChanged) {
-                        if (file.delete()) {
-                            notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("Can not delete old chunk file")));
-                            return;
-                        }
-                    } else {
-                        notifyDownloadProgress(file.length());
-                        if (start - 1 == end) {
-                            notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.COMPLETE));
-                            return;
-                        }
-                    }
-                }
-            }
-            if (!file.exists()) {
-                try {
-                    File folder = new File(file.getAbsolutePath().substring(0, file.getAbsolutePath().lastIndexOf(File.separator)));
-                    if (!folder.exists()) {
-                        if (folder.mkdirs()) {
-                            notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("Can not mkdirs")));
-                            return;
-                        }
-                    }
-                    if (!file.createNewFile()) {
-                        notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("Can not create file")));
-                        return;
-                    }
-                } catch (IOException e) {
-                    notifyDownloadStatus(new ChunkDownloadStatus(e));
+                if (start - 1 == end) {
+                    notifyChunkDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.COMPLETE));
                     return;
+                }
+            } else {
+                File folder = file.getParentFile();
+                if (!folder.exists()) {
+                    folder.mkdirs();
                 }
             }
             if (download.getPauseFlag()) {
-                notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.IDLE));
+                notifyChunkDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.IDLE));
                 return;
             }
             InputStream inputStream;
@@ -208,39 +135,30 @@ public final class ChunkDownload {
                 } else {
                     inputStream = downloadAPI.getInputStream(request.url(), request.headers());
                 }
-            } catch (Exception e) {
-                notifyDownloadStatus(new ChunkDownloadStatus(e));
-                return;
-            }
-            if (inputStream == null) {
-                notifyDownloadStatus(new ChunkDownloadStatus(new RuntimeException("null inputStream")));
+            } catch (ConnectException e) {
+                notifyChunkDownloadStatus(new ChunkDownloadStatus(e));
                 return;
             }
             inputStream = new BufferedInputStream(inputStream);
             OutputStream outputStream = null;
             try {
-                notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.DOWNLOADING));
-                outputStream = new ProgressOutputStream(new BufferedOutputStream(new FileOutputStream(file, rangeSupportable), 204800),
-                        new ProgressOutputStream.ProgressListener() {
-                            @Override
-                            public void progressChanged(int delta) {
-                                notifyDownloadProgress(delta);
-                            }
-                        });
-                byte data[] = new byte[1024];
+                notifyChunkDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.DOWNLOADING));
+                outputStream = new FileOutputStream(file, rangeSupportable && !serverFileChanged);
+                byte data[] = new byte[8192];
                 int length;
                 while (!download.getPauseFlag()
                         && (length = inputStream.read(data)) != -1) {
                     outputStream.write(data, 0, length);
+                    notifyDownloadProgress(length);
                 }
                 outputStream.flush();
                 if (download.getPauseFlag()) {
-                    notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.IDLE));
+                    notifyChunkDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.IDLE));
                 } else {
-                    notifyDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.COMPLETE));
+                    notifyChunkDownloadStatus(new ChunkDownloadStatus(ChunkDownloadStatus.COMPLETE));
                 }
-            } catch (Exception e) {
-                notifyDownloadStatus(new ChunkDownloadStatus(e));
+            } catch (IOException e) {
+                notifyChunkDownloadStatus(new ChunkDownloadStatus(e));
             } finally {
                 if (outputStream != null) {
                     try {
